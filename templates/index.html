@@ -1,0 +1,2540 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>手术视频标注系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 2rem;
+            min-height: calc(100vh - 100px);
+        }
+
+        .sidebar {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+            padding: 1.5rem;
+            height: fit-content;
+            max-height: calc(100vh - 140px);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar h2 {
+            color: #555;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+
+        .video-list {
+            list-style: none;
+        }
+
+        .video-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .video-info {
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .video-management {
+            margin-bottom: 1rem;
+            flex-shrink: 0;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+        }
+
+        .video-filters {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-button {
+            padding: 0.25rem 0.5rem;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s ease;
+        }
+
+        .filter-button:hover {
+            background: #f0f0f0;
+        }
+
+        .filter-button.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .video-stats {
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 0.25rem;
+            margin-top: 1rem;
+            flex-shrink: 0;
+        }
+
+        .pagination button {
+            padding: 0.25rem 0.5rem;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: #f0f0f0;
+        }
+
+        .pagination button.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .video-list-container {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .video-item {
+            background: #f8f9fa;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .video-item:hover {
+            border-color: #667eea;
+            background: #e3f2fd;
+        }
+
+        .video-item.active {
+            border-color: #667eea;
+            background: #e3f2fd;
+        }
+
+        .video-status-badge {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            padding: 0.2rem 0.4rem;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .status-completed {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-partial {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-new {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .video-progress {
+            width: 100%;
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            margin-top: 0.5rem;
+            overflow: hidden;
+        }
+
+        .video-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        .sort-controls {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        .sort-select {
+            padding: 0.25rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+
+        .main-content {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+            padding: 2rem;
+            overflow-y: auto;
+            max-height: calc(100vh - 140px);
+        }
+
+        .video-section {
+            margin-bottom: 2rem;
+        }
+
+        .video-container {
+            position: relative;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+
+        #videoPlayer {
+            width: 100%;
+            max-height: 350px;
+            height: 350px;
+            object-fit: contain;
+            background: #000;
+        }
+        
+        .video-format-warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            color: #856404;
+        }
+        
+        .video-format-warning h4 {
+            margin: 0 0 0.5rem 0;
+            color: #856404;
+        }
+        
+        .convert-button {
+            background: #f39c12;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            margin-top: 0.5rem;
+        }
+        
+        .convert-button:hover {
+            background: #e67e22;
+        }
+
+        .video-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .control-group label {
+            font-weight: 500;
+            color: #555;
+        }
+
+        .frame-input {
+            width: 80px;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a6fd8;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .btn:disabled {
+            background: #e9ecef !important;
+            color: #6c757d !important;
+            cursor: not-allowed !important;
+            opacity: 0.65;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .annotation-section {
+            border-top: 1px solid #eee;
+            padding-top: 2rem;
+        }
+
+        .annotation-form {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: #555;
+        }
+
+        .form-group input,
+        .form-group select {
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .select-container {
+            position: relative;
+        }
+
+        .custom-select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+            background: white;
+            cursor: pointer;
+        }
+
+        .custom-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .custom-input {
+            display: none;
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+            margin-top: 0.5rem;
+        }
+
+        .custom-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .toggle-custom-btn {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #666;
+            font-size: 0.8rem;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .toggle-custom-btn:hover {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .video-actions {
+            margin-top: 0.5rem;
+            text-align: center;
+        }
+
+        .completion-btn {
+            padding: 0.3rem 0.8rem;
+            border: none;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .completion-btn.completed {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .completion-btn.completed:hover {
+            background: #c3e6cb;
+            color: #0c5460;
+        }
+
+        .completion-btn.incomplete {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .completion-btn.incomplete:hover {
+            background: #ffeaa7;
+            color: #533f03;
+        }
+
+        .annotations-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .annotation-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .annotation-item:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .annotation-item.editing {
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+        }
+
+        .annotation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .annotation-frames {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .annotation-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .annotation-content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .annotation-field {
+            text-align: center;
+        }
+
+        .annotation-field .label {
+            font-size: 0.8rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .annotation-field .value {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .status-message {
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 1rem;
+            color: #555;
+        }
+
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .sidebar {
+                max-height: 300px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .video-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .annotation-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>手术视频标注系统</h1>
+    </div>
+
+    <div class="container">
+        <div class="sidebar">
+            <h2>视频管理</h2>
+            
+            <div class="video-management">
+                <!-- 搜索框 -->
+                <input type="text" id="videoSearch" class="search-box" placeholder="🔍 搜索视频文件名...">
+                
+                <!-- 过滤器 -->
+                <div class="video-filters">
+                    <button class="filter-button active" data-filter="all">全部</button>
+                    <button class="filter-button" data-filter="new">未标注</button>
+                    <button class="filter-button" data-filter="partial">进行中</button>
+                    <button class="filter-button" data-filter="completed">已完成</button>
+                </div>
+                
+                <!-- 排序控制 -->
+                <div class="sort-controls">
+                    <label>排序:</label>
+                    <select id="sortSelect" class="sort-select">
+                        <option value="name">文件名</option>
+                        <option value="date">修改时间</option>
+                        <option value="size">文件大小</option>
+                        <option value="progress">标注进度</option>
+                        <option value="duration">视频时长</option>
+                    </select>
+                    <button id="sortDirection" class="filter-button" data-direction="asc">↑</button>
+                </div>
+                
+                <!-- 统计信息 -->
+                <div id="videoStats" class="video-stats">
+                    加载统计信息中...
+                </div>
+            </div>
+            
+            <!-- 加载状态 -->
+            <div id="loadingVideos" class="loading">
+                加载视频列表中...
+            </div>
+            
+            <!-- 视频列表容器 -->
+            <div class="video-list-container">
+                <ul id="videoList" class="video-list" style="display: none;"></ul>
+                <div id="emptyVideos" class="empty-state" style="display: none;">
+                    <h3>暂无视频</h3>
+                    <p>请将视频文件放入 {{ videos_folder }}</p>
+                </div>
+                <div id="noFilterResults" class="empty-state" style="display: none;">
+                    <h3>无匹配结果</h3>
+                    <p>请尝试调整搜索条件或过滤器</p>
+                </div>
+            </div>
+            
+            <!-- 分页控制 -->
+            <div id="pagination" class="pagination" style="display: none;"></div>
+        </div>
+
+        <div class="main-content">
+            <div id="noVideoSelected" class="empty-state">
+                <h3>选择视频开始标注</h3>
+                <p>请从左侧列表中选择一个视频进行标注</p>
+            </div>
+
+            <div id="videoContent" style="display: none;">
+                <div class="video-section">
+                    <div class="video-container">
+                        <div id="videoFormatWarning" class="video-format-warning" style="display: none;">
+                            <h4>⚠️ 视频格式兼容性提示</h4>
+                            <p>当前视频格式可能在浏览器中播放有问题。建议:</p>
+                            <ul>
+                                <li>✅ 使用 Chrome/Firefox/Edge 最新版本</li>
+                                <li>✅ 将 AVI 文件转换为 MP4 格式以获得最佳兼容性</li>
+                                <li>✅ 确保视频编码为 H.264</li>
+                            </ul>
+                            <button class="convert-button" onclick="showConversionHelp()">
+                                🔄 查看转换方法
+                            </button>
+                        </div>
+                        <video id="videoPlayer" controls>
+                            您的浏览器不支持视频播放。
+                        </video>
+                    </div>
+
+                    <div class="video-controls">
+                        <div class="control-group">
+                            <label>当前帧:</label>
+                            <span id="currentFrame">0</span>
+                        </div>
+                        <div class="control-group">
+                            <label>总帧数:</label>
+                            <span id="totalFrames">0</span>
+                        </div>
+                        <div class="control-group">
+                            <label>跳转到帧:</label>
+                            <input type="number" id="jumpToFrame" class="frame-input" min="0">
+                            <button class="btn btn-secondary" onclick="jumpToFrame()">跳转</button>
+                        </div>
+                        <div class="control-group">
+                            <button id="prevFrameBtn" class="btn btn-secondary" onclick="previousFrame()" disabled>上一帧</button>
+                            <button id="nextFrameBtn" class="btn btn-secondary" onclick="nextFrame()" disabled>下一帧</button>
+                        </div>
+                        <div class="control-group">
+                            <small style="color: #666; font-size: 0.8rem;">
+                                💡 快捷键：←→ 控制帧，空格键 播放/暂停
+                            </small>
+                        </div>
+                                        <div class="control-group">
+                    <label>
+                        <input type="checkbox" id="debugMode" style="margin-right: 5px;">
+                        调试模式（显示详细日志）
+                    </label>
+                </div>
+                <div class="control-group">
+                    <button class="btn btn-secondary" onclick="showStatusSettings()">
+                        ⚙️ 状态设置
+                    </button>
+                </div>
+                    </div>
+                </div>
+
+                <div class="annotation-section">
+                    <h2>标注管理</h2>
+                    
+                    <div id="statusMessage" class="status-message"></div>
+
+                    <div class="annotation-form">
+                        <h3 id="annotationFormTitle">添加新标注</h3>
+                        <form id="annotationForm">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="startFrame">开始帧</label>
+                                    <input type="number" id="startFrame" name="startFrame" min="0" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="endFrame">结束帧</label>
+                                    <input type="number" id="endFrame" name="endFrame" min="0" required>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="instrument">器械</label>
+                                    <div class="select-container">
+                                        <select id="instrumentSelect" class="custom-select" required>
+                                            <option value="">选择器械...</option>
+                                            <option value="__custom__">🖊️ 自定义输入</option>
+                                        </select>
+                                        <input type="text" id="instrumentCustom" class="custom-input" 
+                                               placeholder="输入自定义器械名称">
+                                        <input type="hidden" id="instrument" name="instrument">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="action">动作</label>
+                                    <div class="select-container">
+                                        <select id="actionSelect" class="custom-select" required>
+                                            <option value="">选择动作...</option>
+                                            <option value="__custom__">🖊️ 自定义输入</option>
+                                        </select>
+                                        <input type="text" id="actionCustom" class="custom-input" 
+                                               placeholder="输入自定义动作名称">
+                                        <input type="hidden" id="action" name="action">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="target">目标</label>
+                                    <div class="select-container">
+                                        <select id="targetSelect" class="custom-select" required>
+                                            <option value="">选择目标...</option>
+                                            <option value="__custom__">🖊️ 自定义输入</option>
+                                        </select>
+                                        <input type="text" id="targetCustom" class="custom-input" 
+                                               placeholder="输入自定义目标名称">
+                                        <input type="hidden" id="target" name="target">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <button type="button" class="btn btn-secondary" onclick="setCurrentFrameAsStart()">
+                                    设为开始帧
+                                </button>
+                                <button type="button" class="btn btn-secondary" onclick="setCurrentFrameAsEnd()">
+                                    设为结束帧
+                                </button>
+                                <button type="submit" class="btn btn-primary" id="annotationSubmitButton">添加标注</button>
+                                <button type="button" class="btn btn-secondary" id="cancelEditButton" style="display: none;" onclick="cancelEditing()">取消编辑</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="annotations-list">
+                        <h3>已有标注 (<span id="annotationCount">0</span>)</h3>
+                        <div id="annotationsList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentVideo = null;
+        let videoInfo = null;
+        let annotations = [];
+        let isUpdating = false;
+        let frameControlLocked = false;
+        let lastFrameOperation = 0;
+        let editingAnnotationId = null;
+        
+        // 视频管理相关变量
+        let allVideos = [];
+        let filteredVideos = [];
+        let currentPage = 1;
+        let videosPerPage = 10;
+        let currentFilter = 'all';
+        let currentSort = 'name';
+        let sortDirection = 'asc';
+        let searchQuery = '';
+        
+        // 三元组选项数据
+        let tripletOptions = {
+            instruments: [],
+            actions: [],
+            targets: []
+        };
+        const DEFAULT_TRIPLET_UI_CONFIG = {
+            triplet_fields: {
+                instrument: {
+                    label: '器械',
+                    select_placeholder: '选择器械...',
+                    custom_placeholder: '输入自定义器械名称'
+                },
+                action: {
+                    label: '动作',
+                    select_placeholder: '选择动作...',
+                    custom_placeholder: '输入自定义动作名称'
+                },
+                target: {
+                    label: '目标',
+                    select_placeholder: '选择目标...',
+                    custom_placeholder: '输入自定义目标名称'
+                }
+            },
+            triplet_customization: {
+                allow_custom_input: true,
+                custom_option_label: '🖊️ 自定义输入'
+            }
+        };
+        let tripletUiConfig = cloneTripletUiConfig();
+
+        function cloneTripletUiConfig(config = DEFAULT_TRIPLET_UI_CONFIG) {
+            return JSON.parse(JSON.stringify(config));
+        }
+
+        function getTripletFieldConfig(field) {
+            return tripletUiConfig.triplet_fields?.[field]
+                || DEFAULT_TRIPLET_UI_CONFIG.triplet_fields[field];
+        }
+
+        function getTripletFieldLabel(field) {
+            return getTripletFieldConfig(field)?.label || field;
+        }
+
+        function isCustomTripletInputAllowed() {
+            return Boolean(tripletUiConfig.triplet_customization?.allow_custom_input);
+        }
+
+        function applyTripletUiConfig() {
+            ['instrument', 'action', 'target'].forEach(field => {
+                const label = document.querySelector(`label[for="${field}"]`);
+                const customInput = document.getElementById(`${field}Custom`);
+                const fieldConfig = getTripletFieldConfig(field);
+
+                if (label) {
+                    label.textContent = fieldConfig.label;
+                }
+
+                if (customInput) {
+                    customInput.placeholder = fieldConfig.custom_placeholder;
+                    if (!isCustomTripletInputAllowed()) {
+                        customInput.style.display = 'none';
+                    }
+                }
+            });
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadTripletOptions();
+            loadVideoList();
+            setupVideoPlayer();
+            setupAnnotationForm();
+            updateAnnotationFormMode();
+            setupKeyboardShortcuts();
+            setupVideoManagement();
+        });
+        
+        // 加载三元组选项
+        async function loadTripletOptions() {
+            try {
+                const response = await fetch('/api/triplet-options');
+                const data = await response.json();
+                
+                if (data.success) {
+                    tripletOptions = data.options;
+                    tripletUiConfig = data.ui_config ? cloneTripletUiConfig(data.ui_config) : cloneTripletUiConfig();
+                    setupTripletSelectors();
+                } else {
+                    console.error('加载三元组选项失败:', data.error);
+                    showStatus('加载标注选项失败', 'error');
+                }
+            } catch (error) {
+                console.error('加载三元组选项失败:', error);
+                showStatus('加载标注选项失败', 'error');
+            }
+        }
+        
+        // 设置三元组选择器
+        function setupTripletSelectors() {
+            applyTripletUiConfig();
+            // 填充器械选项
+            populateSelect('instrument', tripletOptions.instruments);
+            // 填充动作选项
+            populateSelect('action', tripletOptions.actions);
+            // 填充目标选项
+            populateSelect('target', tripletOptions.targets);
+            
+            // 设置事件监听器
+            setupSelectEventListeners();
+        }
+        
+        // 填充下拉框选项
+        function populateSelect(field, options) {
+            const select = document.getElementById(`${field}Select`);
+            if (!select) return;
+
+            const fieldConfig = getTripletFieldConfig(field);
+            const allowCustomInput = isCustomTripletInputAllowed();
+            const customOptionLabel = tripletUiConfig.triplet_customization?.custom_option_label
+                || DEFAULT_TRIPLET_UI_CONFIG.triplet_customization.custom_option_label;
+
+            select.innerHTML = '';
+
+            const placeholderOption = document.createElement('option');
+            placeholderOption.value = '';
+            placeholderOption.textContent = fieldConfig.select_placeholder;
+            select.appendChild(placeholderOption);
+
+            options.forEach(option => {
+                const optionElement = document.createElement('option');
+                optionElement.value = option;
+                optionElement.textContent = option;
+                select.appendChild(optionElement);
+            });
+
+            if (allowCustomInput) {
+                const customOption = document.createElement('option');
+                customOption.value = '__custom__';
+                customOption.textContent = customOptionLabel;
+                select.appendChild(customOption);
+            }
+        }
+        
+        // 设置选择器事件监听
+        function setupSelectEventListeners() {
+            const selectors = [
+                { select: 'instrumentSelect', custom: 'instrumentCustom', hidden: 'instrument' },
+                { select: 'actionSelect', custom: 'actionCustom', hidden: 'action' },
+                { select: 'targetSelect', custom: 'targetCustom', hidden: 'target' }
+            ];
+            
+            selectors.forEach(({ select, custom, hidden }) => {
+                const selectElement = document.getElementById(select);
+                const customInput = document.getElementById(custom);
+                const hiddenInput = document.getElementById(hidden);
+                
+                if (selectElement && customInput && hiddenInput) {
+                    if (selectElement.dataset.eventsBound === 'true') {
+                        return;
+                    }
+
+                    // 下拉框变化事件
+                    selectElement.addEventListener('change', function() {
+                        if (isCustomTripletInputAllowed() && this.value === '__custom__') {
+                            // 显示自定义输入框
+                            customInput.style.display = 'block';
+                            customInput.focus();
+                            hiddenInput.value = '';
+                        } else {
+                            // 隐藏自定义输入框
+                            customInput.style.display = 'none';
+                            customInput.value = '';
+                            hiddenInput.value = this.value;
+                        }
+                    });
+                    
+                    // 自定义输入框事件
+                    customInput.addEventListener('input', function() {
+                        hiddenInput.value = this.value.trim();
+                    });
+                    
+                    // 自定义输入框失去焦点时，如果为空则回到下拉框
+                    customInput.addEventListener('blur', function() {
+                        if (!this.value.trim()) {
+                            this.style.display = 'none';
+                            selectElement.value = '';
+                            hiddenInput.value = '';
+                        }
+                    });
+
+                    selectElement.dataset.eventsBound = 'true';
+                }
+            });
+        }
+        
+        // 重置三元组表单
+        function resetTripletForm() {
+            // 重置下拉框
+            document.getElementById('instrumentSelect').value = '';
+            document.getElementById('actionSelect').value = '';
+            document.getElementById('targetSelect').value = '';
+            
+            // 隐藏并清空自定义输入框
+            const customInputs = ['instrumentCustom', 'actionCustom', 'targetCustom'];
+            customInputs.forEach(id => {
+                const input = document.getElementById(id);
+                if (input) {
+                    input.style.display = 'none';
+                    input.value = '';
+                }
+            });
+            
+            // 清空隐藏字段
+            document.getElementById('instrument').value = '';
+            document.getElementById('action').value = '';
+            document.getElementById('target').value = '';
+        }
+
+        function setTripletFieldValue(field, value) {
+            const select = document.getElementById(`${field}Select`);
+            const customInput = document.getElementById(`${field}Custom`);
+            const hiddenInput = document.getElementById(field);
+
+            if (!select || !customInput || !hiddenInput) return;
+
+            const trimmedValue = (value ?? '').trim();
+            const allowCustomInput = isCustomTripletInputAllowed();
+
+            if (!trimmedValue) {
+                select.value = '';
+                customInput.style.display = 'none';
+                customInput.value = '';
+                hiddenInput.value = '';
+                return;
+            }
+
+            const options = Array.from(select.options || []);
+            const hasOption = options.some(option => option.value === trimmedValue);
+
+            if (hasOption) {
+                select.value = trimmedValue;
+                customInput.style.display = 'none';
+                customInput.value = '';
+            } else if (allowCustomInput) {
+                select.value = '__custom__';
+                customInput.style.display = 'block';
+                customInput.value = trimmedValue;
+            } else {
+                const fallbackOption = document.createElement('option');
+                fallbackOption.value = trimmedValue;
+                fallbackOption.textContent = trimmedValue;
+                select.appendChild(fallbackOption);
+                select.value = trimmedValue;
+                customInput.style.display = 'none';
+                customInput.value = '';
+            }
+
+            hiddenInput.value = trimmedValue;
+        }
+
+        function populateAnnotationForm(annotation) {
+            document.getElementById('startFrame').value = annotation.start_frame;
+            document.getElementById('endFrame').value = annotation.end_frame;
+            setTripletFieldValue('instrument', annotation.instrument);
+            setTripletFieldValue('action', annotation.action);
+            setTripletFieldValue('target', annotation.target);
+        }
+
+        function updateAnnotationFormMode() {
+            const title = document.getElementById('annotationFormTitle');
+            const submitButton = document.getElementById('annotationSubmitButton');
+            const cancelButton = document.getElementById('cancelEditButton');
+
+            if (!title || !submitButton || !cancelButton) {
+                return;
+            }
+
+            if (editingAnnotationId) {
+                title.textContent = '编辑标注';
+                submitButton.textContent = '保存修改';
+                cancelButton.style.display = 'inline-flex';
+            } else {
+                title.textContent = '添加新标注';
+                submitButton.textContent = '添加标注';
+                cancelButton.style.display = 'none';
+            }
+        }
+
+        function startEditAnnotation(annotationId) {
+            const annotation = annotations.find(a => a.id === annotationId);
+            if (!annotation) {
+                showStatus('未找到标注，无法编辑', 'error');
+                return;
+            }
+
+            editingAnnotationId = annotationId;
+            populateAnnotationForm(annotation);
+            updateAnnotationFormMode();
+            displayAnnotations();
+
+            const formElement = document.getElementById('annotationForm');
+            if (formElement && formElement.scrollIntoView) {
+                formElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        function cancelEditing(showFeedback = true) {
+            const wasEditing = Boolean(editingAnnotationId);
+            editingAnnotationId = null;
+            document.getElementById('startFrame').value = '';
+            document.getElementById('endFrame').value = '';
+            resetTripletForm();
+            updateAnnotationFormMode();
+            if (wasEditing) {
+                displayAnnotations();
+            }
+
+            if (wasEditing && showFeedback) {
+                showStatus('已取消标注编辑', 'success');
+            }
+        }
+
+        // 切换视频完成状态
+        async function toggleVideoCompletion(videoName, completed, event) {
+            // 阻止事件冒泡，避免触发视频选择
+            event.stopPropagation();
+            
+            try {
+                const response = await fetch(`/api/videos/${encodeURIComponent(videoName)}/complete`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        completed_manually: completed
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // 更新本地视频数据
+                    const videoIndex = allVideos.findIndex(v => v.name === videoName);
+                    if (videoIndex !== -1) {
+                        allVideos[videoIndex].completed_manually = completed;
+                        allVideos[videoIndex].status = getVideoStatus(
+                            allVideos[videoIndex].annotation_count, 
+                            allVideos[videoIndex].video_info?.frame_count, 
+                            completed
+                        );
+                        
+                        // 重新渲染当前页面
+                        filterAndDisplayVideos();
+                        updateVideoStats();
+                        
+                        // 显示成功消息
+                        const statusText = completed ? '已完成' : '进行中';
+                        showStatus(`✅ 视频状态已更新为: ${statusText}`, 'success');
+                    }
+                } else {
+                    showStatus(`❌ 更新失败: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                console.error('更新视频完成状态失败:', error);
+                showStatus(`❌ 更新失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 设置键盘快捷键
+        function setupKeyboardShortcuts() {
+            document.addEventListener('keydown', function(e) {
+                // 只在没有输入框获得焦点时响应快捷键
+                if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+                    switch(e.key) {
+                        case 'ArrowLeft':
+                            e.preventDefault();
+                            previousFrame();
+                            break;
+                        case 'ArrowRight':
+                            e.preventDefault();
+                            nextFrame();
+                            break;
+                        case ' ':
+                            e.preventDefault();
+                            const videoPlayer = document.getElementById('videoPlayer');
+                            if (videoPlayer) {
+                                if (videoPlayer.paused) {
+                                    videoPlayer.play();
+                                } else {
+                                    videoPlayer.pause();
+                                }
+                            }
+                            break;
+                    }
+                }
+            });
+        }
+
+        // 设置视频管理功能
+        function setupVideoManagement() {
+            // 搜索框事件
+            const searchBox = document.getElementById('videoSearch');
+            searchBox.addEventListener('input', function(e) {
+                searchQuery = e.target.value.toLowerCase();
+                currentPage = 1;
+                filterAndDisplayVideos();
+            });
+            
+            // 过滤器按钮事件
+            const filterButtons = document.querySelectorAll('.filter-button[data-filter]');
+            filterButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    // 更新活动状态
+                    filterButtons.forEach(btn => btn.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    currentFilter = this.dataset.filter;
+                    currentPage = 1;
+                    filterAndDisplayVideos();
+                });
+            });
+            
+            // 排序选择事件
+            const sortSelect = document.getElementById('sortSelect');
+            sortSelect.addEventListener('change', function() {
+                currentSort = this.value;
+                currentPage = 1;
+                filterAndDisplayVideos();
+            });
+            
+            // 排序方向按钮事件
+            const sortDirectionBtn = document.getElementById('sortDirection');
+            sortDirectionBtn.addEventListener('click', function() {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+                this.textContent = sortDirection === 'asc' ? '↑' : '↓';
+                this.dataset.direction = sortDirection;
+                filterAndDisplayVideos();
+            });
+        }
+
+        // 加载视频列表
+        async function loadVideoList() {
+            try {
+                const response = await fetch('/api/videos');
+                const data = await response.json();
+                
+                document.getElementById('loadingVideos').style.display = 'none';
+                
+                if (data.success && data.videos.length > 0) {
+                    // 添加额外的视频信息处理
+                    allVideos = data.videos.map(video => ({
+                        ...video,
+                        status: getVideoStatus(video.annotation_count, video.video_info?.frame_count, video.completed_manually),
+                        progress: calculateProgress(video.annotation_count, video.video_info?.frame_count),
+                        lastModified: Date.now() // 这里可以从服务器获取真实的修改时间
+                    }));
+                    
+                    filterAndDisplayVideos();
+                    updateVideoStats();
+                } else {
+                    document.getElementById('emptyVideos').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('加载视频列表失败:', error);
+                document.getElementById('loadingVideos').style.display = 'none';
+                document.getElementById('emptyVideos').style.display = 'block';
+            }
+        }
+        
+        // 状态判断配置
+        const STATUS_CONFIG = {
+            framesPerAnnotation: 30,    // 每多少帧需要一个标注
+            completionThreshold: 80     // 完成度阈值（百分比）
+        };
+        
+        // 确定视频状态
+        function getVideoStatus(annotationCount, frameCount, completedManually = false) {
+            // 如果手动标记为完成，直接返回completed
+            if (completedManually) {
+                return 'completed'; // 🟢 已完成：手动标记
+            }
+            
+            if (!annotationCount || annotationCount === 0) {
+                return 'new';        // 🔴 未标注：0个标注
+            } else {
+                return 'partial';    // 🟡 进行中：有标注但未手动标记完成
+            }
+        }
+        
+        // 计算进度百分比 (现在主要显示标注数量)
+        function calculateProgress(annotationCount, frameCount) {
+            if (!frameCount || !annotationCount) return 0;
+            // 计算标注密度，但不作为完成度指标
+            const expectedAnnotations = Math.ceil(frameCount / STATUS_CONFIG.framesPerAnnotation);
+            return Math.min((annotationCount / expectedAnnotations) * 100, 100);
+        }
+
+        // 过滤和显示视频
+        function filterAndDisplayVideos() {
+            // 应用搜索过滤
+            let filtered = allVideos.filter(video => {
+                const matchesSearch = video.name.toLowerCase().includes(searchQuery);
+                const matchesFilter = currentFilter === 'all' || video.status === currentFilter;
+                return matchesSearch && matchesFilter;
+            });
+            
+            // 应用排序
+            filtered.sort((a, b) => {
+                let comparison = 0;
+                
+                switch (currentSort) {
+                    case 'name':
+                        comparison = a.name.localeCompare(b.name);
+                        break;
+                    case 'date':
+                        comparison = a.lastModified - b.lastModified;
+                        break;
+                    case 'size':
+                        comparison = a.size - b.size;
+                        break;
+                    case 'progress':
+                        comparison = a.progress - b.progress;
+                        break;
+                    case 'duration':
+                        comparison = (a.video_info?.duration || 0) - (b.video_info?.duration || 0);
+                        break;
+                }
+                
+                return sortDirection === 'asc' ? comparison : -comparison;
+            });
+            
+            filteredVideos = filtered;
+            
+            // 显示结果
+            if (filteredVideos.length === 0) {
+                document.getElementById('videoList').style.display = 'none';
+                document.getElementById('pagination').style.display = 'none';
+                if (allVideos.length === 0) {
+                    document.getElementById('emptyVideos').style.display = 'block';
+                    document.getElementById('noFilterResults').style.display = 'none';
+                } else {
+                    document.getElementById('emptyVideos').style.display = 'none';
+                    document.getElementById('noFilterResults').style.display = 'block';
+                }
+            } else {
+                document.getElementById('emptyVideos').style.display = 'none';
+                document.getElementById('noFilterResults').style.display = 'none';
+                displayCurrentPage();
+                updatePagination();
+            }
+        }
+        
+        // 显示当前页的视频
+        function displayCurrentPage() {
+            const startIndex = (currentPage - 1) * videosPerPage;
+            const endIndex = startIndex + videosPerPage;
+            const pageVideos = filteredVideos.slice(startIndex, endIndex);
+            
+            displayVideoList(pageVideos);
+        }
+        
+        // 显示视频列表
+        function displayVideoList(videos) {
+            const videoList = document.getElementById('videoList');
+            videoList.innerHTML = '';
+            
+            videos.forEach(video => {
+                const li = document.createElement('li');
+                li.className = 'video-item';
+                li.onclick = () => selectVideo(video);
+                const displayName = video.display_name || video.name.split('/').pop();
+                const folderLabel = video.folder || '';
+                const quotedVideoName = JSON.stringify(video.name);
+                
+                // 状态徽章
+                const statusText = {
+                    'new': '未标注',
+                    'partial': '进行中', 
+                    'completed': '已完成'
+                };
+                
+                // 格式化文件大小
+                const formatFileSize = (bytes) => {
+                    if (bytes === 0) return '0 B';
+                    const k = 1024;
+                    const sizes = ['B', 'KB', 'MB', 'GB'];
+                    const i = Math.floor(Math.log(bytes) / Math.log(k));
+                    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                };
+                
+                // 格式化时长
+                const formatDuration = (seconds) => {
+                    const mins = Math.floor(seconds / 60);
+                    const secs = Math.floor(seconds % 60);
+                    return `${mins}:${secs.toString().padStart(2, '0')}`;
+                };
+                
+                const completionButton = video.completed_manually ? 
+                    `<button class="completion-btn completed" onclick='toggleVideoCompletion(${quotedVideoName}, false, event)' title="取消完成标记">
+                        ✅ 已完成
+                    </button>` :
+                    `<button class="completion-btn incomplete" onclick='toggleVideoCompletion(${quotedVideoName}, true, event)' title="标记为完成">
+                        ⭕ 标记完成
+                    </button>`;
+                
+                li.innerHTML = `
+                    <div class="video-status-badge status-${video.status}">
+                        ${statusText[video.status]}
+                    </div>
+                    <div class="video-name" title="${video.name}">${displayName}</div>
+                    ${folderLabel ? `<div style="font-size: 0.75rem; color: #888; margin-top: 0.2rem;">📁 ${folderLabel}/</div>` : ''}
+                    <div class="video-info">
+                        📊 ${video.annotation_count} 个标注<br>
+                        ${video.video_info ? `⏱️ ${formatDuration(video.video_info.duration)} | 📏 ${video.video_info.frame_count}帧<br>` : ''}
+                        💾 ${formatFileSize(video.size)}
+                    </div>
+                    <div class="video-progress">
+                        <div class="video-progress-bar" style="width: ${video.progress}%"></div>
+                    </div>
+                    <div class="video-actions">
+                        ${completionButton}
+                    </div>
+                `;
+                
+                videoList.appendChild(li);
+            });
+            
+            videoList.style.display = 'block';
+        }
+        
+        // 更新分页控制
+        function updatePagination() {
+            const totalPages = Math.ceil(filteredVideos.length / videosPerPage);
+            const paginationContainer = document.getElementById('pagination');
+            
+            if (totalPages <= 1) {
+                paginationContainer.style.display = 'none';
+                return;
+            }
+            
+            paginationContainer.style.display = 'flex';
+            paginationContainer.innerHTML = '';
+            
+            // 上一页按钮
+            const prevBtn = document.createElement('button');
+            prevBtn.textContent = '‹';
+            prevBtn.disabled = currentPage === 1;
+            prevBtn.onclick = () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    displayCurrentPage();
+                    updatePagination();
+                }
+            };
+            paginationContainer.appendChild(prevBtn);
+            
+            // 页码按钮
+            const startPage = Math.max(1, currentPage - 2);
+            const endPage = Math.min(totalPages, startPage + 4);
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const pageBtn = document.createElement('button');
+                pageBtn.textContent = i;
+                pageBtn.className = i === currentPage ? 'active' : '';
+                pageBtn.onclick = () => {
+                    currentPage = i;
+                    displayCurrentPage();
+                    updatePagination();
+                };
+                paginationContainer.appendChild(pageBtn);
+            }
+            
+            // 下一页按钮
+            const nextBtn = document.createElement('button');
+            nextBtn.textContent = '›';
+            nextBtn.disabled = currentPage === totalPages;
+            nextBtn.onclick = () => {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    displayCurrentPage();
+                    updatePagination();
+                }
+            };
+            paginationContainer.appendChild(nextBtn);
+        }
+        
+        // 更新统计信息
+        function updateVideoStats() {
+            const stats = {
+                total: allVideos.length,
+                new: allVideos.filter(v => v.status === 'new').length,
+                partial: allVideos.filter(v => v.status === 'partial').length,
+                completed: allVideos.filter(v => v.status === 'completed').length,
+                totalAnnotations: allVideos.reduce((sum, v) => sum + v.annotation_count, 0)
+            };
+            
+            document.getElementById('videoStats').innerHTML = `
+                📹 总数: ${stats.total} | 
+                🆕 未标注: ${stats.new} | 
+                🔄 进行中: ${stats.partial} | 
+                ✅ 已完成: ${stats.completed}<br>
+                📝 总标注数: ${stats.totalAnnotations}
+            `;
+        }
+
+        // 选择视频
+        async function selectVideo(video) {
+            // 更新选中状态
+            document.querySelectorAll('.video-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.target.closest('.video-item').classList.add('active');
+
+            cancelEditing(false);
+            
+            currentVideo = video.name;
+            
+            // 检查视频格式
+            const extension = video.name.toLowerCase().split('.').pop();
+            
+            // 显示视频内容区域
+            document.getElementById('noVideoSelected').style.display = 'none';
+            document.getElementById('videoContent').style.display = 'block';
+            
+            // 所有格式统一处理，AVI会在后端转换为MP4流
+            document.getElementById('videoFormatWarning').style.display = 'none';
+            const videoPlayer = document.getElementById('videoPlayer');
+            videoPlayer.src = `/videos/${video.name}`;
+            
+            // 加载视频信息和标注
+            await loadVideoInfo();
+            await loadAnnotations();
+            
+            // 更新视频状态
+            await refreshVideoStatus(video);
+        }
+        
+        // 检查视频格式兼容性
+        function checkVideoFormat(videoName) {
+            const extension = videoName.toLowerCase().split('.').pop();
+            const warningDiv = document.getElementById('videoFormatWarning');
+            
+            // 移除AVI格式警告，直接支持标注
+            warningDiv.style.display = 'none';
+        }
+        
+        // 显示转换帮助信息
+        function showConversionHelp() {
+            const helpMessage = `
+🔄 视频格式转换方法:
+
+1. 使用 FFmpeg (推荐):
+   ffmpeg -i input.avi -c:v libx264 -c:a aac output.mp4
+
+2. 使用在线转换工具:
+   - CloudConvert (cloudconvert.com)
+   - Online-Convert (online-convert.com)
+   - Zamzar (zamzar.com)
+
+3. 使用桌面软件:
+   - VLC Media Player (免费)
+   - HandBrake (免费)
+   - Format Factory (免费)
+
+💡 转换建议:
+- 输出格式: MP4
+- 视频编码: H.264
+- 音频编码: AAC
+- 保持原始分辨率和帧率
+
+转换完成后，将新的MP4文件放入videos文件夹即可。
+            `;
+            
+            alert(helpMessage);
+        }
+        
+        // 显示状态设置面板
+        function showStatusSettings() {
+            const currentFramesPerAnnotation = STATUS_CONFIG.framesPerAnnotation;
+            const currentCompletionThreshold = STATUS_CONFIG.completionThreshold;
+            
+            const newFramesPerAnnotation = prompt(
+                `设置标注密度标准\n\n当前设置：每 ${currentFramesPerAnnotation} 帧需要 1 个标注\n\n请输入新的帧数（建议范围：10-60）:`, 
+                currentFramesPerAnnotation
+            );
+            
+            if (newFramesPerAnnotation !== null) {
+                const framesNum = parseInt(newFramesPerAnnotation);
+                if (framesNum && framesNum >= 5 && framesNum <= 200) {
+                    STATUS_CONFIG.framesPerAnnotation = framesNum;
+                    
+                    const newCompletionThreshold = prompt(
+                        `设置完成度阈值\n\n当前设置：${currentCompletionThreshold}% 标注密度视为已完成\n\n请输入新的阈值（建议范围：60-100）:`, 
+                        currentCompletionThreshold
+                    );
+                    
+                    if (newCompletionThreshold !== null) {
+                        const thresholdNum = parseInt(newCompletionThreshold);
+                        if (thresholdNum && thresholdNum >= 10 && thresholdNum <= 100) {
+                            STATUS_CONFIG.completionThreshold = thresholdNum;
+                            
+                            // 重新计算所有视频状态
+                            allVideos.forEach(video => {
+                                video.status = getVideoStatus(video.annotation_count, video.video_info?.frame_count, video.completed_manually);
+                                video.progress = calculateProgress(video.annotation_count, video.video_info?.frame_count);
+                            });
+                            
+                            // 刷新显示
+                            filterAndDisplayVideos();
+                            updateVideoStats();
+                            
+                            showStatus(`✅ 状态设置已更新：每${framesNum}帧1标注，${thresholdNum}%完成阈值`, 'success');
+                        } else {
+                            showStatus('❌ 完成度阈值无效，请输入10-100之间的数字', 'error');
+                        }
+                    }
+                } else {
+                    showStatus('❌ 帧数设置无效，请输入5-200之间的数字', 'error');
+                }
+            }
+        }
+        
+        // 刷新视频状态
+        async function refreshVideoStatus(video) {
+            try {
+                const response = await fetch(`/api/videos/${video.name}/info`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    // 更新allVideos中对应视频的信息
+                    const videoIndex = allVideos.findIndex(v => v.name === video.name);
+                    if (videoIndex !== -1) {
+                        allVideos[videoIndex].annotation_count = data.annotation_count;
+                        allVideos[videoIndex].completed_manually = data.completed_manually || false;
+                        allVideos[videoIndex].status = getVideoStatus(data.annotation_count, data.video_info?.frame_count, allVideos[videoIndex].completed_manually);
+                        allVideos[videoIndex].progress = calculateProgress(data.annotation_count, data.video_info?.frame_count);
+                        
+                        // 更新统计信息
+                        updateVideoStats();
+                        
+                        // 如果当前在显示这个视频所在的页面，重新渲染
+                        if (filteredVideos.some(v => v.name === video.name)) {
+                            displayCurrentPage();
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('刷新视频状态失败:', error);
+            }
+        }
+
+        // 加载视频信息
+        async function loadVideoInfo() {
+            try {
+                const response = await fetch(`/api/videos/${currentVideo}/info`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    videoInfo = data.video_info;
+                    document.getElementById('totalFrames').textContent = videoInfo.frame_count;
+                    document.getElementById('jumpToFrame').max = videoInfo.frame_count - 1;
+                    document.getElementById('endFrame').max = videoInfo.frame_count - 1;
+                    
+                    // 启用帧控制按钮
+                    document.getElementById('prevFrameBtn').disabled = false;
+                    document.getElementById('nextFrameBtn').disabled = false;
+                    
+                    // 等待视频加载完成后校验帧率
+                    const videoPlayer = document.getElementById('videoPlayer');
+                    if (videoPlayer) {
+                        videoPlayer.addEventListener('loadedmetadata', function calibrateFPS() {
+                            setTimeout(() => {
+                                calibrateFrameRate(videoPlayer);
+                            }, 1000);
+                            // 移除事件监听器，只执行一次
+                            videoPlayer.removeEventListener('loadedmetadata', calibrateFPS);
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('加载视频信息失败:', error);
+            }
+        }
+        
+        // 校准帧率 - 解决帧率不准确问题
+        function calibrateFrameRate(videoPlayer) {
+            const debugMode = document.getElementById('debugMode')?.checked;
+            
+            if (!videoInfo || !videoPlayer) return;
+            
+            if (debugMode) {
+                console.log(`🔧 开始校准帧率，原始FPS: ${videoInfo.fps}`);
+            }
+            
+            // 测试多个时间点的帧率
+            const testPoints = [1, 2, 3, 5, 10]; // 测试这些秒数位置
+            let calibrationResults = [];
+            let testIndex = 0;
+            
+            const testNextPoint = () => {
+                if (testIndex >= testPoints.length) {
+                    // 完成所有测试，计算校准后的FPS
+                    finalizeFPSCalibration(calibrationResults, debugMode);
+                    return;
+                }
+                
+                const testTime = testPoints[testIndex];
+                if (testTime >= videoPlayer.duration) {
+                    testIndex++;
+                    setTimeout(testNextPoint, 50);
+                    return;
+                }
+                
+                const originalTime = videoPlayer.currentTime;
+                videoPlayer.currentTime = testTime;
+                
+                setTimeout(() => {
+                    const actualTime = videoPlayer.currentTime;
+                    const reportedFrame = Math.floor(actualTime * videoInfo.fps);
+                    
+                    calibrationResults.push({
+                        time: actualTime,
+                        reportedFrame: reportedFrame,
+                        testPoint: testTime
+                    });
+                    
+                    if (debugMode) {
+                        console.log(`📊 测试点 ${testTime}s: 实际时间 ${actualTime.toFixed(6)}s, 计算帧 ${reportedFrame}`);
+                    }
+                    
+                    testIndex++;
+                    setTimeout(testNextPoint, 100);
+                }, 150);
+            };
+            
+            // 开始测试
+            testNextPoint();
+        }
+        
+        // 完成FPS校准
+        function finalizeFPSCalibration(results, debugMode) {
+            if (results.length < 2) return;
+            
+            // 计算实际帧率
+            let totalTimeSpan = 0;
+            let totalFrameSpan = 0;
+            
+            for (let i = 1; i < results.length; i++) {
+                const prev = results[i-1];
+                const curr = results[i];
+                
+                const timeSpan = curr.time - prev.time;
+                const frameSpan = curr.reportedFrame - prev.reportedFrame;
+                
+                if (timeSpan > 0 && frameSpan > 0) {
+                    totalTimeSpan += timeSpan;
+                    totalFrameSpan += frameSpan;
+                }
+            }
+            
+            if (totalTimeSpan > 0) {
+                const measuredFPS = totalFrameSpan / totalTimeSpan;
+                const fpsError = Math.abs(measuredFPS - videoInfo.fps) / videoInfo.fps;
+                
+                if (debugMode) {
+                    console.log(`📏 测量FPS: ${measuredFPS.toFixed(6)}, 原始FPS: ${videoInfo.fps}, 误差: ${(fpsError * 100).toFixed(2)}%`);
+                }
+                
+                // 如果误差超过1%，使用测量的FPS
+                if (fpsError > 0.01) {
+                    if (debugMode) {
+                        console.log(`🔧 FPS校准: ${videoInfo.fps} -> ${measuredFPS.toFixed(6)}`);
+                    }
+                    videoInfo.fps = measuredFPS;
+                    videoInfo.calibrated = true;
+                } else {
+                    if (debugMode) {
+                        console.log(`✅ FPS准确，无需校准`);
+                    }
+                }
+            }
+            
+            // 恢复到开始位置
+            const videoPlayer = document.getElementById('videoPlayer');
+            if (videoPlayer) {
+                videoPlayer.currentTime = 0;
+            }
+        }
+
+        // 加载标注数据
+        async function loadAnnotations() {
+            try {
+                const response = await fetch(`/api/videos/${currentVideo}/annotations`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    annotations = data.annotations;
+                    displayAnnotations();
+                    if (editingAnnotationId) {
+                        const editingAnnotation = annotations.find(a => a.id === editingAnnotationId);
+                        if (editingAnnotation) {
+                            populateAnnotationForm(editingAnnotation);
+                        } else {
+                            cancelEditing(false);
+                            showStatus('标注已不存在，已取消编辑', 'error');
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('加载标注失败:', error);
+            }
+        }
+
+        // 显示标注列表
+        function displayAnnotations() {
+            const annotationsList = document.getElementById('annotationsList');
+            const annotationCount = document.getElementById('annotationCount');
+            
+            annotationCount.textContent = annotations.length;
+            
+            if (annotations.length === 0) {
+                annotationsList.innerHTML = '<div class="empty-state"><p>暂无标注</p></div>';
+                return;
+            }
+            
+            annotationsList.innerHTML = '';
+            
+            // 按开始帧排序
+            const sortedAnnotations = [...annotations].sort((a, b) => a.start_frame - b.start_frame);
+            
+            sortedAnnotations.forEach(annotation => {
+                const div = document.createElement('div');
+                div.className = 'annotation-item';
+                div.dataset.annotationId = annotation.id;
+                if (annotation.id === editingAnnotationId) {
+                    div.classList.add('editing');
+                }
+                div.innerHTML = `
+                    <div class="annotation-header">
+                        <div class="annotation-frames">
+                            第 ${annotation.start_frame} - ${annotation.end_frame} 帧
+                        </div>
+                        <div class="annotation-actions">
+                            <button class="btn btn-secondary" onclick="startEditAnnotation('${annotation.id}')">
+                                编辑
+                            </button>
+                            <button class="btn btn-secondary" onclick="jumpToAnnotation('${annotation.id}')">
+                                定位
+                            </button>
+                            <button class="btn btn-danger" onclick="deleteAnnotation('${annotation.id}')">
+                                删除
+                            </button>
+                        </div>
+                    </div>
+                    <div class="annotation-content">
+                        <div class="annotation-field">
+                            <div class="label">${getTripletFieldLabel('instrument')}</div>
+                            <div class="value">${annotation.instrument}</div>
+                        </div>
+                        <div class="annotation-field">
+                            <div class="label">${getTripletFieldLabel('action')}</div>
+                            <div class="value">${annotation.action}</div>
+                        </div>
+                        <div class="annotation-field">
+                            <div class="label">${getTripletFieldLabel('target')}</div>
+                            <div class="value">${annotation.target}</div>
+                        </div>
+                    </div>
+                `;
+                annotationsList.appendChild(div);
+            });
+        }
+
+        // 设置视频播放器
+        function setupVideoPlayer() {
+            const videoPlayer = document.getElementById('videoPlayer');
+            
+            videoPlayer.addEventListener('timeupdate', function() {
+                if (videoInfo && !isUpdating && videoPlayer.readyState >= 2) {
+                    const currentTime = videoPlayer.currentTime;
+                    const currentFrame = Math.floor(currentTime * videoInfo.fps);
+                    document.getElementById('currentFrame').textContent = currentFrame;
+                }
+            });
+            
+            // 添加视频元数据加载完成事件
+            videoPlayer.addEventListener('loadedmetadata', function() {
+                console.log('视频元数据加载完成');
+                if (videoInfo) {
+                    document.getElementById('currentFrame').textContent = '0';
+                }
+            });
+            
+            // 添加视频数据加载完成事件
+            videoPlayer.addEventListener('canplay', function() {
+                console.log('视频可以播放');
+            });
+            
+            // 添加错误处理
+            videoPlayer.addEventListener('error', function(e) {
+                console.error('视频播放错误:', e);
+                showStatus('视频加载失败，请检查文件格式', 'error');
+            });
+        }
+
+        // 设置标注表单
+        function setupAnnotationForm() {
+            const form = document.getElementById('annotationForm');
+            if (!form) return;
+
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                if (!currentVideo) {
+                    showStatus('请先选择一个视频', 'error');
+                    return;
+                }
+                
+                const formData = new FormData(e.target);
+                const annotationData = {
+                    start_frame: parseInt(formData.get('startFrame'), 10),
+                    end_frame: parseInt(formData.get('endFrame'), 10),
+                    instrument: (formData.get('instrument') || '').trim(),
+                    action: (formData.get('action') || '').trim(),
+                    target: (formData.get('target') || '').trim()
+                };
+
+                if (Number.isNaN(annotationData.start_frame) || Number.isNaN(annotationData.end_frame)) {
+                    showStatus('请输入有效的开始帧和结束帧', 'error');
+                    return;
+                }
+
+                if (!annotationData.instrument || !annotationData.action || !annotationData.target) {
+                    const fieldLabels = ['instrument', 'action', 'target'].map(getTripletFieldLabel).join('、');
+                    const actionText = isCustomTripletInputAllowed() ? '请选择或输入完整的' : '请选择完整的';
+                    showStatus(`${actionText}${fieldLabels}`, 'error');
+                    return;
+                }
+
+                const isEditing = Boolean(editingAnnotationId);
+                const targetAnnotationId = editingAnnotationId;
+                const requestUrl = isEditing
+                    ? `/api/videos/${currentVideo}/annotations/${targetAnnotationId}`
+                    : `/api/videos/${currentVideo}/annotations`;
+                const method = isEditing ? 'PUT' : 'POST';
+                const actionLabel = isEditing ? '更新' : '添加';
+                
+                try {
+                    const response = await fetch(requestUrl, {
+                        method: method,
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(annotationData)
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        showStatus(`标注${actionLabel}成功`, 'success');
+                        // 重置帧数输入
+                        document.getElementById('startFrame').value = '';
+                        document.getElementById('endFrame').value = '';
+                        // 重置三元组表单
+                        resetTripletForm();
+                        if (isEditing) {
+                            editingAnnotationId = null;
+                            updateAnnotationFormMode();
+                        }
+                        await loadAnnotations();
+                        // 刷新当前视频状态
+                        if (currentVideo) {
+                            const currentVideoData = allVideos.find(v => v.name === currentVideo);
+                            if (currentVideoData) {
+                                await refreshVideoStatus(currentVideoData);
+                            }
+                        }
+                    } else {
+                        showStatus(`${actionLabel}失败: ${data.error}`, 'error');
+                    }
+                } catch (error) {
+                    showStatus(`${actionLabel}失败: ${error.message}`, 'error');
+                }
+            });
+        }
+
+        // 显示状态消息
+        function showStatus(message, type) {
+            const statusMessage = document.getElementById('statusMessage');
+            statusMessage.textContent = message;
+            statusMessage.className = `status-message status-${type}`;
+            statusMessage.style.display = 'block';
+            
+            setTimeout(() => {
+                statusMessage.style.display = 'none';
+            }, 3000);
+        }
+
+        // 跳转到指定帧
+        function jumpToFrame() {
+            const frame = parseInt(document.getElementById('jumpToFrame').value);
+            
+            if (isNaN(frame)) {
+                showStatus('请输入有效的帧数', 'error');
+                return;
+            }
+            
+            if (frameControlLocked) {
+                const debugMode = document.getElementById('debugMode')?.checked;
+                if (debugMode) console.log('帧控制被锁定，跳转被阻止');
+                return;
+            }
+            
+            const videoPlayer = document.getElementById('videoPlayer');
+            
+            if (!videoInfo || !videoPlayer) {
+                showStatus('视频未加载', 'error');
+                return;
+            }
+            
+            if (frame < 0 || frame >= videoInfo.frame_count) {
+                showStatus(`帧数超出范围 (0-${videoInfo.frame_count-1})`, 'error');
+                return;
+            }
+            
+            if (videoPlayer.readyState < 2) {
+                showStatus('视频未准备好，请稍后重试', 'error');
+                return;
+            }
+            
+            frameControlLocked = true;
+            updateFrameControlButtons(true);
+            
+            const debugMode = document.getElementById('debugMode')?.checked;
+            if (debugMode) console.log(`跳转到帧 ${frame}`);
+            
+            // 使用精确跳转方法
+            performAccurateFrameJump(videoPlayer, frame).then(() => {
+                document.getElementById('jumpToFrame').value = '';
+                const actualFrame = parseInt(document.getElementById('currentFrame').textContent);
+                
+                if (Math.abs(actualFrame - frame) > 2) {
+                    showStatus(`跳转误差: 目标 ${frame}, 实际 ${actualFrame}`, 'error');
+                } else {
+                    showStatus(`跳转成功到第 ${actualFrame} 帧`, 'success');
+                }
+            });
+        }
+
+        // 上一帧
+        function previousFrame() {
+            performFrameOperation('prev');
+        }
+
+        // 强化的帧控制函数
+        function performFrameOperation(direction) {
+            const now = Date.now();
+            
+            // 防抖机制：防止过快点击
+            if (frameControlLocked || (now - lastFrameOperation) < 200) {
+                const debugMode = document.getElementById('debugMode')?.checked;
+                if (debugMode) console.log('帧操作被防抖机制阻止');
+                return false;
+            }
+            
+            const videoPlayer = document.getElementById('videoPlayer');
+            
+            // 多重检查
+            const debugMode = document.getElementById('debugMode')?.checked;
+            
+            if (!videoInfo) {
+                if (debugMode) console.log('视频信息未加载');
+                return false;
+            }
+            
+            if (!videoPlayer) {
+                if (debugMode) console.log('视频播放器未找到');
+                return false;
+            }
+            
+            if (videoPlayer.readyState < 2) {
+                if (debugMode) console.log('视频未准备好，readyState:', videoPlayer.readyState);
+                return false;
+            }
+            
+            if (videoPlayer.seeking) {
+                if (debugMode) console.log('视频正在跳转中');
+                return false;
+            }
+            
+            frameControlLocked = true;
+            lastFrameOperation = now;
+            
+            // 显示视觉反馈
+            updateFrameControlButtons(true);
+            
+            const currentFrame = Math.floor(videoPlayer.currentTime * videoInfo.fps);
+            let targetFrame;
+            
+            if (direction === 'next') {
+                if (currentFrame >= videoInfo.frame_count - 1) {
+                    if (debugMode) console.log('已到达最后一帧');
+                    frameControlLocked = false;
+                    updateFrameControlButtons(false);
+                    return false;
+                }
+                targetFrame = currentFrame + 1;
+            } else if (direction === 'prev') {
+                if (currentFrame <= 0) {
+                    if (debugMode) console.log('已到达第一帧');
+                    frameControlLocked = false;
+                    updateFrameControlButtons(false);
+                    return false;
+                }
+                targetFrame = currentFrame - 1;
+            }
+            
+            if (debugMode) {
+                console.log(`帧操作: ${direction}, 当前帧: ${currentFrame}, 目标帧: ${targetFrame}`);
+            }
+            
+            // 使用更强力的帧跳转方法
+            return performAccurateFrameJump(videoPlayer, targetFrame);
+        }
+        
+        // 强力帧跳转函数 - 解决关键帧问题
+        function performAccurateFrameJump(videoPlayer, targetFrame) {
+            const debugMode = document.getElementById('debugMode')?.checked;
+            
+            return new Promise((resolve) => {
+                let attempt = 0;
+                const maxAttempts = 15;
+                
+                const attemptJump = () => {
+                    attempt++;
+                    if (debugMode) {
+                        console.log(`🚀 强力帧跳转尝试 ${attempt}/${maxAttempts}, 目标帧: ${targetFrame}`);
+                    }
+                    
+                    // 使用更激进的时间计算策略
+                    const baseTime = targetFrame / videoInfo.fps;
+                    const currentTime = videoPlayer.currentTime;
+                    const currentFrame = Math.floor(currentTime * videoInfo.fps);
+                    
+                    // 生成更多的时间候选值
+                    const times = [];
+                    
+                    // 基础时间
+                    times.push(baseTime);
+                    
+                    // 微调范围：从-0.1秒到+0.1秒，步长0.001秒
+                    for (let i = -100; i <= 100; i += 1) {
+                        times.push(baseTime + (i * 0.001));
+                    }
+                    
+                    // 帧边界时间
+                    times.push((targetFrame - 0.1) / videoInfo.fps);
+                    times.push((targetFrame - 0.3) / videoInfo.fps);
+                    times.push((targetFrame - 0.5) / videoInfo.fps);
+                    times.push((targetFrame + 0.1) / videoInfo.fps);
+                    times.push((targetFrame + 0.3) / videoInfo.fps);
+                    times.push((targetFrame + 0.5) / videoInfo.fps);
+                    times.push((targetFrame + 0.9) / videoInfo.fps);
+                    
+                    // 去重并排序
+                    const uniqueTimes = [...new Set(times)]
+                        .filter(t => t >= 0 && t <= (videoPlayer.duration || Infinity))
+                        .sort((a, b) => Math.abs(a - baseTime) - Math.abs(b - baseTime));
+                    
+                    if (debugMode) {
+                        console.log(`生成 ${uniqueTimes.length} 个候选时间，基准时间: ${baseTime.toFixed(6)}s`);
+                    }
+                    
+                    let timeIndex = 0;
+                    let bestResult = { frame: currentFrame, time: currentTime, diff: Math.abs(currentFrame - targetFrame) };
+                    
+                    const tryNextTime = () => {
+                        if (timeIndex >= uniqueTimes.length) {
+                            // 所有时间都试过了
+                            if (debugMode) {
+                                console.log(`所有 ${uniqueTimes.length} 个时间尝试完毕`);
+                                console.log(`最佳结果: 目标 ${targetFrame}, 实际 ${bestResult.frame}, 误差 ${bestResult.diff}`);
+                            }
+                            
+                            // 使用最佳结果
+                            videoPlayer.currentTime = bestResult.time;
+                            
+                            setTimeout(() => {
+                                const finalFrame = Math.floor(videoPlayer.currentTime * videoInfo.fps);
+                                
+                                if (attempt < maxAttempts && Math.abs(finalFrame - targetFrame) > 1) {
+                                    // 尝试终极方案：seeking事件 + 强制刷新
+                                    if (debugMode) {
+                                        console.log(`🔄 启用终极方案: seeking事件 + 强制刷新...`);
+                                    }
+                                    
+                                    tryUltimateFrameJump(videoPlayer, targetFrame, debugMode).then((success) => {
+                                        if (success) {
+                                            const ultimateFrame = Math.floor(videoPlayer.currentTime * videoInfo.fps);
+                                            document.getElementById('currentFrame').textContent = ultimateFrame;
+                                            isUpdating = false;
+                                            frameControlLocked = false;
+                                            updateFrameControlButtons(false);
+                                            if (debugMode) {
+                                                console.log(`🎯 终极方案成功: 目标 ${targetFrame}, 实际 ${ultimateFrame}`);
+                                            }
+                                            resolve(true);
+                                        } else {
+                                            // 所有方法都失败了，重试
+                                            setTimeout(attemptJump, 300);
+                                        }
+                                    });
+                                    
+                                } else {
+                                    // 完成跳转
+                                    document.getElementById('currentFrame').textContent = finalFrame;
+                                    isUpdating = false;
+                                    frameControlLocked = false;
+                                    updateFrameControlButtons(false);
+                                    if (debugMode) {
+                                        console.log(`✅ 帧跳转最终完成: 目标 ${targetFrame}, 实际 ${finalFrame}`);
+                                    }
+                                    resolve(true);
+                                }
+                            }, 100);
+                            return;
+                        }
+                        
+                        const testTime = uniqueTimes[timeIndex];
+                        videoPlayer.currentTime = testTime;
+                        
+                        setTimeout(() => {
+                            const resultFrame = Math.floor(videoPlayer.currentTime * videoInfo.fps);
+                            const diff = Math.abs(resultFrame - targetFrame);
+                            
+                            if (debugMode && timeIndex % 20 === 0) {
+                                console.log(`⏱️ 时间 ${timeIndex + 1}/${uniqueTimes.length}: ${testTime.toFixed(6)}s -> 帧 ${resultFrame} (误差 ${diff})`);
+                            }
+                            
+                            // 记录最佳结果
+                            if (diff < bestResult.diff || (diff === bestResult.diff && Math.abs(testTime - baseTime) < Math.abs(bestResult.time - baseTime))) {
+                                bestResult = { frame: resultFrame, time: testTime, diff: diff };
+                                if (debugMode) {
+                                    console.log(`🎯 新的最佳结果: 帧 ${resultFrame}, 误差 ${diff}`);
+                                }
+                            }
+                            
+                            if (diff === 0) {
+                                // 完美匹配！
+                                document.getElementById('currentFrame').textContent = resultFrame;
+                                isUpdating = false;
+                                frameControlLocked = false;
+                                updateFrameControlButtons(false);
+                                if (debugMode) {
+                                    console.log(`🎉 完美匹配! 目标 ${targetFrame}, 实际 ${resultFrame}`);
+                                }
+                                resolve(true);
+                                return;
+                            }
+                            
+                            // 尝试下一个时间
+                            timeIndex++;
+                            setTimeout(tryNextTime, 5); // 减少延迟加快尝试速度
+                        }, 30);
+                    };
+                    
+                    tryNextTime();
+                };
+                
+                isUpdating = true;
+                attemptJump();
+            });
+        }
+        
+        // 终极帧跳转方案 - 使用seeking事件
+        function tryUltimateFrameJump(videoPlayer, targetFrame, debugMode) {
+            return new Promise((resolve) => {
+                if (debugMode) {
+                    console.log(`🚀 终极方案启动: 目标帧 ${targetFrame}`);
+                }
+                
+                // 计算目标时间
+                const targetTime = targetFrame / videoInfo.fps;
+                let attemptCount = 0;
+                const maxUltimateAttempts = 3;
+                
+                const ultimateAttempt = () => {
+                    attemptCount++;
+                    if (debugMode) {
+                        console.log(`⚔️ 终极尝试 ${attemptCount}/${maxUltimateAttempts}`);
+                    }
+                    
+                    // 方法1：使用seeking事件确保跳转完成
+                    let seekingTimeout;
+                    let seekedListener;
+                    
+                    const cleanup = () => {
+                        if (seekingTimeout) clearTimeout(seekingTimeout);
+                        if (seekedListener) {
+                            videoPlayer.removeEventListener('seeked', seekedListener);
+                        }
+                    };
+                    
+                    seekedListener = () => {
+                        cleanup();
+                        
+                        const resultFrame = Math.floor(videoPlayer.currentTime * videoInfo.fps);
+                        const diff = Math.abs(resultFrame - targetFrame);
+                        
+                        if (debugMode) {
+                            console.log(`🎯 seeking完成: 目标 ${targetFrame}, 实际 ${resultFrame}, 误差 ${diff}`);
+                        }
+                        
+                        if (diff <= 1) {
+                            resolve(true);
+                        } else if (attemptCount < maxUltimateAttempts) {
+                            // 尝试微调
+                            const adjustment = (targetFrame - resultFrame) / videoInfo.fps * 0.1;
+                            const newTime = videoPlayer.currentTime + adjustment;
+                            
+                            if (debugMode) {
+                                console.log(`🔧 微调时间: ${adjustment.toFixed(6)}s`);
+                            }
+                            
+                            setTimeout(() => {
+                                videoPlayer.currentTime = Math.max(0, Math.min(newTime, videoPlayer.duration || newTime));
+                                setTimeout(ultimateAttempt, 200);
+                            }, 100);
+                        } else {
+                            resolve(false);
+                        }
+                    };
+                    
+                    // 设置seeking监听器
+                    videoPlayer.addEventListener('seeked', seekedListener);
+                    
+                    // 设置超时保护
+                    seekingTimeout = setTimeout(() => {
+                        cleanup();
+                        if (debugMode) {
+                            console.log(`⏰ seeking超时`);
+                        }
+                        
+                        if (attemptCount < maxUltimateAttempts) {
+                            setTimeout(ultimateAttempt, 100);
+                        } else {
+                            resolve(false);
+                        }
+                    }, 2000);
+                    
+                    // 执行跳转 - 使用多种方法
+                    const methods = [
+                        () => {
+                            // 方法1：直接设置
+                            videoPlayer.currentTime = targetTime;
+                        },
+                        () => {
+                            // 方法2：暂停后设置
+                            const wasPlaying = !videoPlayer.paused;
+                            videoPlayer.pause();
+                            videoPlayer.currentTime = targetTime;
+                            if (wasPlaying) {
+                                setTimeout(() => videoPlayer.play().catch(() => {}), 100);
+                            }
+                        },
+                        () => {
+                            // 方法3：快速来回跳转
+                            videoPlayer.currentTime = targetTime - 0.1;
+                            setTimeout(() => {
+                                videoPlayer.currentTime = targetTime + 0.1;
+                                setTimeout(() => {
+                                    videoPlayer.currentTime = targetTime;
+                                }, 50);
+                            }, 50);
+                        }
+                    ];
+                    
+                    const method = methods[Math.min(attemptCount - 1, methods.length - 1)];
+                    
+                    if (debugMode) {
+                        console.log(`⚡ 使用方法 ${attemptCount}: ${method.toString().slice(0, 50)}...`);
+                    }
+                    
+                    method();
+                };
+                
+                ultimateAttempt();
+            });
+        }
+        
+        // 更新帧控制按钮状态
+        function updateFrameControlButtons(processing) {
+            const prevBtn = document.getElementById('prevFrameBtn');
+            const nextBtn = document.getElementById('nextFrameBtn');
+            
+            if (processing) {
+                if (prevBtn) {
+                    prevBtn.style.opacity = '0.5';
+                    prevBtn.style.cursor = 'wait';
+                }
+                if (nextBtn) {
+                    nextBtn.style.opacity = '0.5';
+                    nextBtn.style.cursor = 'wait';
+                }
+            } else {
+                if (prevBtn) {
+                    prevBtn.style.opacity = '1';
+                    prevBtn.style.cursor = 'pointer';
+                }
+                if (nextBtn) {
+                    nextBtn.style.opacity = '1';
+                    nextBtn.style.cursor = 'pointer';
+                }
+            }
+        }
+        
+        // 下一帧
+        function nextFrame() {
+            performFrameOperation('next');
+        }
+
+        // 设置当前帧为开始帧
+        function setCurrentFrameAsStart() {
+            const currentFrame = parseInt(document.getElementById('currentFrame').textContent);
+            document.getElementById('startFrame').value = currentFrame;
+        }
+
+        // 设置当前帧为结束帧
+        function setCurrentFrameAsEnd() {
+            const currentFrame = parseInt(document.getElementById('currentFrame').textContent);
+            document.getElementById('endFrame').value = currentFrame;
+        }
+
+        // 跳转到标注
+        function jumpToAnnotation(annotationId) {
+            const annotation = annotations.find(a => a.id === annotationId);
+            if (annotation) {
+                document.getElementById('jumpToFrame').value = annotation.start_frame;
+                jumpToFrame();
+            }
+        }
+
+        // 删除标注
+        async function deleteAnnotation(annotationId) {
+            if (!confirm('确定要删除这个标注吗？')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/videos/${currentVideo}/annotations/${annotationId}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showStatus('标注删除成功', 'success');
+                    await loadAnnotations();
+                    // 刷新当前视频状态
+                    if (currentVideo) {
+                        const currentVideoData = allVideos.find(v => v.name === currentVideo);
+                        if (currentVideoData) {
+                            await refreshVideoStatus(currentVideoData);
+                        }
+                    }
+                } else {
+                    showStatus(`删除失败: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`删除失败: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

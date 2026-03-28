@@ -1,0 +1,38 @@
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+.pytest_cache/
+.mypy_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Editors
+.idea/
+.vscode/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+pip-wheel-metadata/
+
+# Logs and archives
+*.log
+*.zip
+
+# Runtime data
+data/videos/
+data/annotations/
+data/server.log
+
+# Keep tracked seed data and editable runtime config
+!data/
+!data/app_config.json
+!data/三元组.csv

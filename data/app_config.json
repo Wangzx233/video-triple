@@ -1,0 +1,23 @@
+{
+  "triplet_fields": {
+    "instrument": {
+      "label": "器械",
+      "select_placeholder": "选择器械...",
+      "custom_placeholder": "输入自定义器械名称"
+    },
+    "action": {
+      "label": "动作",
+      "select_placeholder": "选择动作...",
+      "custom_placeholder": "输入自定义动作名称"
+    },
+    "target": {
+      "label": "目标",
+      "select_placeholder": "选择目标...",
+      "custom_placeholder": "输入自定义目标名称"
+    }
+  },
+  "triplet_customization": {
+    "allow_custom_input": true,
+    "custom_option_label": "🖊️ 自定义输入"
+  }
+}
