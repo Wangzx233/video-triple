@@ -300,7 +300,7 @@ def load_triplet_options():
         meipass = getattr(sys, '_MEIPASS', None)
         if meipass:
             csv_candidates.append(os.path.join(meipass, 'data', '三元组.csv'))
-        csv_candidates.append(os.path.join(os.path.dirname(sys.executable), 'data', '三元组.csv'))
+        # 兼容早期打包产物；当前 onedir 版本统一使用可执行文件同级 data 目录。
         csv_candidates.append(os.path.join(os.path.dirname(sys.executable), '_internal', 'data', '三元组.csv'))
         csv_candidates.append(os.path.join(os.path.dirname(sys.executable), '_internal', '三元组.csv'))
 

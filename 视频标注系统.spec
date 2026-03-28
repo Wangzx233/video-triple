@@ -22,6 +22,27 @@ def _clean_dir(path):
                 pass
 
 
+def _prepare_external_data(app_dist_dir):
+    data_dir = os.path.join(app_dist_dir, 'data')
+    internal_data_dir = os.path.join(app_dist_dir, '_internal', 'data')
+
+    os.makedirs(os.path.join(data_dir, 'videos'), exist_ok=True)
+    os.makedirs(os.path.join(data_dir, 'annotations'), exist_ok=True)
+
+    for filename in ('三元组.csv', 'app_config.json'):
+        source_path = os.path.join(project_root, 'data', filename)
+        target_path = os.path.join(data_dir, filename)
+        if os.path.exists(source_path):
+            shutil.copy2(source_path, target_path)
+
+        internal_path = os.path.join(internal_data_dir, filename)
+        if os.path.exists(internal_path):
+            os.remove(internal_path)
+
+    if os.path.isdir(internal_data_dir) and not os.listdir(internal_data_dir):
+        os.rmdir(internal_data_dir)
+
+
 CONF['noconfirm'] = True
 _clean_dir(CONF.get('cachedir'))
 _clean_dir(CONF.get('workpath'))
@@ -33,8 +54,6 @@ a = Analysis(
     datas=[
         (os.path.join(project_root, 'templates'), 'templates'),
         (os.path.join(project_root, 'static'), 'static'),
-        (os.path.join(project_root, 'data', '三元组.csv'), 'data'),
-        (os.path.join(project_root, 'data', 'app_config.json'), 'data'),
     ],
     hiddenimports=[],
     hookspath=[],
@@ -73,3 +92,5 @@ coll = COLLECT(
     upx_exclude=[],
     name='视频标注系统',
 )
+
+_prepare_external_data(coll.name)
