@@ -1,13 +1,52 @@
-﻿器械,动作,目标
-Elevator（剥离子）,Fracture（骨折）,Inferior turbinate（下鼻甲）
-Suction（吸引器),Resect (切除),Middle turbinate（中鼻甲）
-Straight through-cut forceps（直型咬切钳),Suction（清除),Uncinate process（钩突）
-Upbiting through-cut forceps（翘45°咬切钳),Remove（移除）,Maxillary sinus（上颌窦）
-Backbiting forceps（反咬钳),injector（注射）,Maxillary sinus ostium （上颌窦口）
-Kerrison rongeur（Kerrison咬骨钳）,Bite（咬除）,Ethmoid sinus（筛窦）
-Curettes（刮匙）,Shave（削除）,Ethmoid bulla（筛泡）
-Straight non-through-cut forceps（直型鼻钳),Curette（刮除）,Frontal sinus ostium （额窦口）
-Microdebrider（刨削钻）,Incise (切开),Frontal sinus（额窦）
-Nasal Scissors (鼻剪),Enlarge（扩大）,Sphenoid sinus（蝶窦）
-Forceps（枪状镊）,Probe (探查),Sphenoid sinus ostium （蝶窦口）
-Injector（注射器）,,
+﻿器械,目标,动作
+Elevator（剥离子）,Inferior turbinate（下鼻甲）,Fracture（骨折）
+,,Incise (切开)
+,null,null
+Injector（注射器）,Uncinate process（钩突）,Inject（注射）
+,Middle turbinate（中鼻甲）,Inject（注射）
+Through-cut forceps（咬切钳),Uncinate process（钩突）,Resect (切除)
+,Middle turbinate（中鼻甲）,Resect (切除)
+,Superior turbinate（上鼻甲),Resect (切除)
+,Ethmoid bulla（筛泡）,Resect (切除)
+,Ethmoid sinus（筛窦）,Resect (切除)
+,Sphenoid sinus（蝶窦）,Resect (切除)
+,Maxillary sinus（上颌窦）,Resect (切除)
+,Frontal sinus（额窦）,Resect (切除)
+Non-through-cut forceps（鼻钳),Uncinate process（钩突）,Remove（移除）
+,Middle turbinate（中鼻甲）,Remove（移除）
+,Superior turbinate（上鼻甲),Remove（移除）
+,Ethmoid bulla（筛泡）,Remove（移除）
+,Ethmoid sinus（筛窦）,Remove（移除）
+,Sphenoid sinus（蝶窦）,Remove（移除）
+,Maxillary sinus（上颌窦）,Remove（移除）
+,Frontal sinus（额窦）,Remove（移除）
+,Sinuses debris（鼻窦废弃物),Remove（移除）
+Electrocautery（热凝器械）,Middle turbinate（中鼻甲）,Hemostasis（止血)
+,null,Hemostasis（止血)
+Microdebrider（刨削钻）,Uncinate process（钩突）,Resect (切除)
+,Ethmoid bulla（筛泡）,Resect (切除)
+,Ethmoid sinus（筛窦）,Resect (切除)
+,Maxillary sinus（上颌窦）,Resect (切除)
+,Frontal sinus（额窦）,Resect (切除)
+,Sphenoid sinus（蝶窦）,Resect (切除)
+,Superior turbinate（上鼻甲),Resect (切除)
+,Middle turbinate（中鼻甲）,Resect (切除)
+Probe（探针）,Maxillary sinus（上颌窦）,Probe (探查)
+,Ethmoid bulla（筛泡）,Probe (探查)
+,Ethmoid sinus（筛窦）,Probe (探查)
+,Frontal sinus（额窦）,Probe (探查)
+,Sphenoid sinus（蝶窦）,Probe (探查)
+Kerrison rongeur（Kerrison咬骨钳）,Ethmoid bulla（筛泡）,Resect (切除)
+,Ethmoid sinus（筛窦）,Resect (切除)
+,Sphenoid sinus（蝶窦）,Resect (切除)
+Backbiting forceps（反咬钳),Maxillary sinus（上颌窦）,Resect (切除)
+,Uncinate process（钩突）,Resect (切除)
+Forceps（枪状镊）,Packing（填塞物),Hemostasis（止血)
+,,Remove（移除）
+,,null
+,null,null
+,Sinuses debris（鼻窦废弃物),Remove（移除）
+Suction（吸引器),Fluid（液体),Suction（清除)
+,null,null
+Nasal Scissors (鼻剪),Middle turbinate（中鼻甲）,Resect (切除)
+,,Incise (切开)

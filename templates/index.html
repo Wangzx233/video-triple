@@ -797,18 +797,6 @@
                                     </div>
                                 </div>
                                 <div class="form-group">
-                                    <label for="action">动作</label>
-                                    <div class="select-container">
-                                        <select id="actionSelect" class="custom-select" required>
-                                            <option value="">选择动作...</option>
-                                            <option value="__custom__">🖊️ 自定义输入</option>
-                                        </select>
-                                        <input type="text" id="actionCustom" class="custom-input" 
-                                               placeholder="输入自定义动作名称">
-                                        <input type="hidden" id="action" name="action">
-                                    </div>
-                                </div>
-                                <div class="form-group">
                                     <label for="target">目标</label>
                                     <div class="select-container">
                                         <select id="targetSelect" class="custom-select" required>
@@ -818,6 +806,18 @@
                                         <input type="text" id="targetCustom" class="custom-input" 
                                                placeholder="输入自定义目标名称">
                                         <input type="hidden" id="target" name="target">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="action">动作</label>
+                                    <div class="select-container">
+                                        <select id="actionSelect" class="custom-select" required>
+                                            <option value="">选择动作...</option>
+                                            <option value="__custom__">🖊️ 自定义输入</option>
+                                        </select>
+                                        <input type="text" id="actionCustom" class="custom-input" 
+                                               placeholder="输入自定义动作名称">
+                                        <input type="hidden" id="action" name="action">
                                     </div>
                                 </div>
                             </div>
@@ -863,10 +863,13 @@
         let searchQuery = '';
         
         // 三元组选项数据
+        const TRIPLET_FIELDS = ['instrument', 'target', 'action'];
         let tripletOptions = {
             instruments: [],
             actions: [],
-            targets: []
+            targets: [],
+            instrument_rules: {},
+            null_value: 'null'
         };
         const DEFAULT_TRIPLET_UI_CONFIG = {
             triplet_fields: {
@@ -910,8 +913,20 @@
             return Boolean(tripletUiConfig.triplet_customization?.allow_custom_input);
         }
 
+        function getTripletRuleForInstrument(instrument) {
+            return tripletOptions.instrument_rules?.[instrument] || null;
+        }
+
+        function getTripletHiddenValue(field) {
+            return (document.getElementById(field)?.value || '').trim();
+        }
+
+        function isTripletCustomSelection(field) {
+            return document.getElementById(`${field}Select`)?.value === '__custom__';
+        }
+
         function applyTripletUiConfig() {
-            ['instrument', 'action', 'target'].forEach(field => {
+            TRIPLET_FIELDS.forEach(field => {
                 const label = document.querySelector(`label[for="${field}"]`);
                 const customInput = document.getElementById(`${field}Custom`);
                 const fieldConfig = getTripletFieldConfig(field);
@@ -947,7 +962,13 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    tripletOptions = data.options;
+                    tripletOptions = {
+                        instruments: data.options?.instruments || [],
+                        actions: data.options?.actions || [],
+                        targets: data.options?.targets || [],
+                        instrument_rules: data.options?.instrument_rules || {},
+                        null_value: data.options?.null_value || 'null'
+                    };
                     tripletUiConfig = data.ui_config ? cloneTripletUiConfig(data.ui_config) : cloneTripletUiConfig();
                     setupTripletSelectors();
                 } else {
@@ -963,32 +984,32 @@
         // 设置三元组选择器
         function setupTripletSelectors() {
             applyTripletUiConfig();
-            // 填充器械选项
             populateSelect('instrument', tripletOptions.instruments);
-            // 填充动作选项
-            populateSelect('action', tripletOptions.actions);
-            // 填充目标选项
-            populateSelect('target', tripletOptions.targets);
-            
-            // 设置事件监听器
+            populateSelect('target', [], { disabled: true, preserveCurrentValue: false });
+            populateSelect('action', [], { disabled: true, preserveCurrentValue: false });
             setupSelectEventListeners();
+            resetTripletForm();
         }
         
         // 填充下拉框选项
-        function populateSelect(field, options) {
+        function populateSelect(field, options, { disabled = false, preserveCurrentValue = true } = {}) {
             const select = document.getElementById(`${field}Select`);
             if (!select) return;
 
+            const previousValue = preserveCurrentValue ? select.value : '';
             const fieldConfig = getTripletFieldConfig(field);
             const allowCustomInput = isCustomTripletInputAllowed();
             const customOptionLabel = tripletUiConfig.triplet_customization?.custom_option_label
                 || DEFAULT_TRIPLET_UI_CONFIG.triplet_customization.custom_option_label;
+            const placeholderText = disabled && field !== 'instrument'
+                ? '请先选择器械...'
+                : fieldConfig.select_placeholder;
 
             select.innerHTML = '';
 
             const placeholderOption = document.createElement('option');
             placeholderOption.value = '';
-            placeholderOption.textContent = fieldConfig.select_placeholder;
+            placeholderOption.textContent = placeholderText;
             select.appendChild(placeholderOption);
 
             options.forEach(option => {
@@ -1004,81 +1025,184 @@
                 customOption.textContent = customOptionLabel;
                 select.appendChild(customOption);
             }
+
+            select.disabled = disabled;
+
+            if (previousValue && Array.from(select.options).some(option => option.value === previousValue)) {
+                select.value = previousValue;
+            } else {
+                select.value = '';
+            }
+        }
+
+        function clearTripletField(field) {
+            const select = document.getElementById(`${field}Select`);
+            const customInput = document.getElementById(`${field}Custom`);
+            const hiddenInput = document.getElementById(field);
+
+            if (select) {
+                select.value = '';
+            }
+            if (customInput) {
+                customInput.style.display = 'none';
+                customInput.value = '';
+            }
+            if (hiddenInput) {
+                hiddenInput.value = '';
+            }
+        }
+
+        function getAvailableTripletOptions(field, { ignoreTarget = false, ignoreAction = false } = {}) {
+            const instrumentValue = getTripletHiddenValue('instrument');
+            if (!instrumentValue) {
+                return [];
+            }
+
+            if (isTripletCustomSelection('instrument')) {
+                return field === 'target' ? tripletOptions.targets : tripletOptions.actions;
+            }
+
+            const instrumentRule = getTripletRuleForInstrument(instrumentValue);
+            if (!instrumentRule) {
+                return [];
+            }
+
+            const targetValue = getTripletHiddenValue('target');
+            const actionValue = getTripletHiddenValue('action');
+
+            if (field === 'target') {
+                if (!ignoreAction && actionValue && !isTripletCustomSelection('action')) {
+                    return instrumentRule.action_to_targets?.[actionValue] || [];
+                }
+                return instrumentRule.targets || [];
+            }
+
+            if (!ignoreTarget && targetValue && !isTripletCustomSelection('target')) {
+                return instrumentRule.target_to_actions?.[targetValue] || [];
+            }
+            return instrumentRule.actions || [];
+        }
+
+        function reconcileTripletField(field) {
+            const select = document.getElementById(`${field}Select`);
+            const customInput = document.getElementById(`${field}Custom`);
+            const hiddenInput = document.getElementById(field);
+            if (!select || !customInput || !hiddenInput) return;
+
+            if (select.value === '__custom__') {
+                hiddenInput.value = customInput.value.trim();
+                return;
+            }
+
+            const hiddenValue = hiddenInput.value.trim();
+            if (!hiddenValue) {
+                return;
+            }
+
+            const hasOption = Array.from(select.options).some(option => option.value === hiddenValue);
+            if (hasOption) {
+                select.value = hiddenValue;
+                hiddenInput.value = hiddenValue;
+                customInput.style.display = 'none';
+                customInput.value = '';
+                return;
+            }
+
+            clearTripletField(field);
+        }
+
+        function refreshDependentTripletSelectors({ priorityField = null, resetDependents = false } = {}) {
+            if (resetDependents) {
+                clearTripletField('target');
+                clearTripletField('action');
+            }
+
+            const hasInstrument = Boolean(getTripletHiddenValue('instrument'));
+            if (!hasInstrument) {
+                populateSelect('target', [], { disabled: true, preserveCurrentValue: false });
+                populateSelect('action', [], { disabled: true, preserveCurrentValue: false });
+                clearTripletField('target');
+                clearTripletField('action');
+                return;
+            }
+
+            populateSelect('target', getAvailableTripletOptions('target', {
+                ignoreAction: priorityField === 'target'
+            }));
+            populateSelect('action', getAvailableTripletOptions('action', {
+                ignoreTarget: priorityField === 'action'
+            }));
+
+            reconcileTripletField('target');
+            reconcileTripletField('action');
+
+            populateSelect('target', getAvailableTripletOptions('target'));
+            populateSelect('action', getAvailableTripletOptions('action'));
+
+            reconcileTripletField('target');
+            reconcileTripletField('action');
         }
         
         // 设置选择器事件监听
         function setupSelectEventListeners() {
-            const selectors = [
-                { select: 'instrumentSelect', custom: 'instrumentCustom', hidden: 'instrument' },
-                { select: 'actionSelect', custom: 'actionCustom', hidden: 'action' },
-                { select: 'targetSelect', custom: 'targetCustom', hidden: 'target' }
-            ];
-            
-            selectors.forEach(({ select, custom, hidden }) => {
-                const selectElement = document.getElementById(select);
-                const customInput = document.getElementById(custom);
-                const hiddenInput = document.getElementById(hidden);
+            TRIPLET_FIELDS.forEach(field => {
+                const selectElement = document.getElementById(`${field}Select`);
+                const customInput = document.getElementById(`${field}Custom`);
+                const hiddenInput = document.getElementById(field);
                 
-                if (selectElement && customInput && hiddenInput) {
-                    if (selectElement.dataset.eventsBound === 'true') {
-                        return;
+                if (!selectElement || !customInput || !hiddenInput) {
+                    return;
+                }
+
+                if (selectElement.dataset.eventsBound === 'true') {
+                    return;
+                }
+
+                selectElement.addEventListener('change', function() {
+                    if (isCustomTripletInputAllowed() && this.value === '__custom__') {
+                        customInput.style.display = 'block';
+                        customInput.focus();
+                        hiddenInput.value = customInput.value.trim();
+                    } else {
+                        customInput.style.display = 'none';
+                        customInput.value = '';
+                        hiddenInput.value = this.value;
                     }
 
-                    // 下拉框变化事件
-                    selectElement.addEventListener('change', function() {
-                        if (isCustomTripletInputAllowed() && this.value === '__custom__') {
-                            // 显示自定义输入框
-                            customInput.style.display = 'block';
-                            customInput.focus();
-                            hiddenInput.value = '';
-                        } else {
-                            // 隐藏自定义输入框
-                            customInput.style.display = 'none';
-                            customInput.value = '';
-                            hiddenInput.value = this.value;
-                        }
-                    });
-                    
-                    // 自定义输入框事件
-                    customInput.addEventListener('input', function() {
-                        hiddenInput.value = this.value.trim();
-                    });
-                    
-                    // 自定义输入框失去焦点时，如果为空则回到下拉框
-                    customInput.addEventListener('blur', function() {
-                        if (!this.value.trim()) {
-                            this.style.display = 'none';
-                            selectElement.value = '';
-                            hiddenInput.value = '';
-                        }
-                    });
+                    if (field === 'instrument') {
+                        refreshDependentTripletSelectors({ priorityField: field, resetDependents: true });
+                    } else {
+                        refreshDependentTripletSelectors({ priorityField: field });
+                    }
+                });
+                
+                customInput.addEventListener('input', function() {
+                    hiddenInput.value = this.value.trim();
+                    refreshDependentTripletSelectors({ priorityField: field });
+                });
+                
+                customInput.addEventListener('blur', function() {
+                    if (!this.value.trim()) {
+                        this.style.display = 'none';
+                        selectElement.value = '';
+                        hiddenInput.value = '';
+                        refreshDependentTripletSelectors({
+                            priorityField: field === 'instrument' ? field : null,
+                            resetDependents: field === 'instrument'
+                        });
+                    }
+                });
 
-                    selectElement.dataset.eventsBound = 'true';
-                }
+                selectElement.dataset.eventsBound = 'true';
             });
         }
         
         // 重置三元组表单
         function resetTripletForm() {
-            // 重置下拉框
-            document.getElementById('instrumentSelect').value = '';
-            document.getElementById('actionSelect').value = '';
-            document.getElementById('targetSelect').value = '';
-            
-            // 隐藏并清空自定义输入框
-            const customInputs = ['instrumentCustom', 'actionCustom', 'targetCustom'];
-            customInputs.forEach(id => {
-                const input = document.getElementById(id);
-                if (input) {
-                    input.style.display = 'none';
-                    input.value = '';
-                }
-            });
-            
-            // 清空隐藏字段
-            document.getElementById('instrument').value = '';
-            document.getElementById('action').value = '';
-            document.getElementById('target').value = '';
+            TRIPLET_FIELDS.forEach(clearTripletField);
+            populateSelect('instrument', tripletOptions.instruments, { preserveCurrentValue: false });
+            populateSelect('target', [], { disabled: true, preserveCurrentValue: false });
+            populateSelect('action', [], { disabled: true, preserveCurrentValue: false });
         }
 
         function setTripletFieldValue(field, value) {
@@ -1092,10 +1216,7 @@
             const allowCustomInput = isCustomTripletInputAllowed();
 
             if (!trimmedValue) {
-                select.value = '';
-                customInput.style.display = 'none';
-                customInput.value = '';
-                hiddenInput.value = '';
+                clearTripletField(field);
                 return;
             }
 
@@ -1126,9 +1247,13 @@
         function populateAnnotationForm(annotation) {
             document.getElementById('startFrame').value = annotation.start_frame;
             document.getElementById('endFrame').value = annotation.end_frame;
+            resetTripletForm();
             setTripletFieldValue('instrument', annotation.instrument);
-            setTripletFieldValue('action', annotation.action);
+            refreshDependentTripletSelectors({ priorityField: 'instrument' });
             setTripletFieldValue('target', annotation.target);
+            refreshDependentTripletSelectors({ priorityField: 'target' });
+            setTripletFieldValue('action', annotation.action);
+            refreshDependentTripletSelectors();
         }
 
         function updateAnnotationFormMode() {
@@ -1923,12 +2048,12 @@
                             <div class="value">${annotation.instrument}</div>
                         </div>
                         <div class="annotation-field">
-                            <div class="label">${getTripletFieldLabel('action')}</div>
-                            <div class="value">${annotation.action}</div>
-                        </div>
-                        <div class="annotation-field">
                             <div class="label">${getTripletFieldLabel('target')}</div>
                             <div class="value">${annotation.target}</div>
+                        </div>
+                        <div class="annotation-field">
+                            <div class="label">${getTripletFieldLabel('action')}</div>
+                            <div class="value">${annotation.action}</div>
                         </div>
                     </div>
                 `;
@@ -1996,7 +2121,7 @@
                 }
 
                 if (!annotationData.instrument || !annotationData.action || !annotationData.target) {
-                    const fieldLabels = ['instrument', 'action', 'target'].map(getTripletFieldLabel).join('、');
+                    const fieldLabels = ['instrument', 'target', 'action'].map(getTripletFieldLabel).join('、');
                     const actionText = isCustomTripletInputAllowed() ? '请选择或输入完整的' : '请选择完整的';
                     showStatus(`${actionText}${fieldLabels}`, 'error');
                     return;

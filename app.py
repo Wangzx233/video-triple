@@ -23,6 +23,7 @@ import threading
 from io import BytesIO
 
 APP_NAME = '视频标注系统'
+TRIPLET_NULL_VALUE = 'null'
 DEFAULT_TRIPLET_OPTIONS = {
     'instruments': ['grasper', 'scissors', 'forceps', 'scalpel', 'needle_holder'],
     'actions': ['grasp', 'cut', 'dissect', 'suture', 'clip'],
@@ -306,37 +307,166 @@ def load_triplet_options():
 
     csv_file = next((path for path in csv_candidates if os.path.exists(path)), None)
     if not csv_file:
-        return copy.deepcopy(DEFAULT_TRIPLET_OPTIONS)
-    
-    instruments = set()
-    actions = set()
-    targets = set()
+        return build_default_triplet_options()
     
     try:
         with open(csv_file, 'r', encoding='utf-8') as f:
             reader = csv.reader(f)
-            
-            # 跳过标题行
-            next(reader, None)
+            header = next(reader, None)
+            column_index = resolve_triplet_column_index(header)
+            current_instrument = None
+            instrument_rules = {}
             
             for row in reader:
-                if len(row) >= 3:
-                    # 添加非空的选项
-                    if row[0].strip():  # 器械
-                        instruments.add(row[0].strip())
-                    if row[1].strip():  # 动作
-                        actions.add(row[1].strip())
-                    if row[2].strip():  # 目标
-                        targets.add(row[2].strip())
+                instrument = normalize_triplet_option(
+                    get_triplet_cell_value(row, column_index['instrument'])
+                )
+                if instrument:
+                    current_instrument = instrument
+                elif current_instrument:
+                    instrument = current_instrument
+                else:
+                    continue
+
+                target = normalize_triplet_option(
+                    get_triplet_cell_value(row, column_index['target']),
+                    default=TRIPLET_NULL_VALUE
+                )
+                action = normalize_triplet_option(
+                    get_triplet_cell_value(row, column_index['action']),
+                    default=TRIPLET_NULL_VALUE
+                )
+                add_triplet_relation(instrument_rules, instrument, target, action)
         
-        return {
-            'instruments': sorted(list(instruments)),
-            'actions': sorted(list(actions)),
-            'targets': sorted(list(targets))
-        }
+        return serialize_triplet_options(instrument_rules)
     except Exception as e:
         print(f"Error loading triplet options: {e}")
-        return copy.deepcopy(DEFAULT_TRIPLET_OPTIONS)
+        return build_default_triplet_options()
+
+
+def normalize_triplet_option(value, default=None):
+    """Normalize triplet option values and collapse blank/null values."""
+    text = (value or '').strip()
+    if not text:
+        return default
+    if text.casefold() == TRIPLET_NULL_VALUE:
+        return TRIPLET_NULL_VALUE
+    return text
+
+
+def get_triplet_cell_value(row, index):
+    """Safely read a CSV cell by index."""
+    if index is None or index >= len(row):
+        return ''
+    return row[index]
+
+
+def resolve_triplet_column_index(header):
+    """Resolve CSV columns by header names, defaulting to the new order."""
+    default_mapping = {
+        'instrument': 0,
+        'target': 1,
+        'action': 2
+    }
+    if not header:
+        return default_mapping
+
+    normalized_header = [normalize_triplet_option(value, default='') for value in header]
+
+    def find_index(keyword):
+        for index, value in enumerate(normalized_header):
+            if keyword in value:
+                return index
+        return None
+
+    instrument_index = find_index('器械')
+    target_index = find_index('目标')
+    action_index = find_index('动作')
+
+    return {
+        'instrument': instrument_index if instrument_index is not None else default_mapping['instrument'],
+        'target': target_index if target_index is not None else default_mapping['target'],
+        'action': action_index if action_index is not None else default_mapping['action']
+    }
+
+
+def add_triplet_relation(instrument_rules, instrument, target, action):
+    """Add a valid triplet relation to the per-instrument rule map."""
+    rule = instrument_rules.setdefault(instrument, {
+        'targets': set(),
+        'actions': set(),
+        'target_to_actions': {},
+        'action_to_targets': {}
+    })
+
+    rule['targets'].add(target)
+    rule['actions'].add(action)
+    rule['target_to_actions'].setdefault(target, set()).add(action)
+    rule['action_to_targets'].setdefault(action, set()).add(target)
+
+
+def sort_triplet_values(values):
+    """Sort triplet options with null kept first."""
+    return sorted(values, key=lambda value: (value != TRIPLET_NULL_VALUE, value.casefold()))
+
+
+def serialize_triplet_options(instrument_rules):
+    """Serialize triplet rules for the frontend and auto-complete null relations."""
+    global_targets = set()
+    global_actions = set()
+
+    for instrument, rule in instrument_rules.items():
+        existing_targets = list(rule['targets'])
+        existing_actions = list(rule['actions'])
+
+        for target in existing_targets:
+            add_triplet_relation(instrument_rules, instrument, target, TRIPLET_NULL_VALUE)
+        for action in existing_actions:
+            add_triplet_relation(instrument_rules, instrument, TRIPLET_NULL_VALUE, action)
+        add_triplet_relation(instrument_rules, instrument, TRIPLET_NULL_VALUE, TRIPLET_NULL_VALUE)
+
+    serialized_rules = {}
+    for instrument in sort_triplet_values(instrument_rules.keys()):
+        rule = instrument_rules[instrument]
+        sorted_targets = sort_triplet_values(rule['targets'])
+        sorted_actions = sort_triplet_values(rule['actions'])
+        global_targets.update(sorted_targets)
+        global_actions.update(sorted_actions)
+
+        serialized_rules[instrument] = {
+            'targets': sorted_targets,
+            'actions': sorted_actions,
+            'target_to_actions': {
+                target: sort_triplet_values(actions)
+                for target, actions in rule['target_to_actions'].items()
+            },
+            'action_to_targets': {
+                action: sort_triplet_values(targets)
+                for action, targets in rule['action_to_targets'].items()
+            }
+        }
+
+    return {
+        'instruments': sort_triplet_values(instrument_rules.keys()),
+        'targets': sort_triplet_values(global_targets),
+        'actions': sort_triplet_values(global_actions),
+        'instrument_rules': serialized_rules,
+        'null_value': TRIPLET_NULL_VALUE
+    }
+
+
+def build_default_triplet_options():
+    """Build a permissive fallback when no CSV file is available."""
+    instrument_rules = {}
+    targets = set(DEFAULT_TRIPLET_OPTIONS['targets'])
+    actions = set(DEFAULT_TRIPLET_OPTIONS['actions'])
+
+    for instrument in DEFAULT_TRIPLET_OPTIONS['instruments']:
+        for target in targets:
+            for action in actions:
+                add_triplet_relation(instrument_rules, instrument, target, action)
+
+    return serialize_triplet_options(instrument_rules)
 
 @app.route('/')
 def index():
