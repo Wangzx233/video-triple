@@ -796,6 +796,7 @@ if __name__ == '__main__':
     print(f"标注文件夹: {os.path.abspath(ANNOTATIONS_FOLDER)}")
     print(f"请将待标注的视频文件放入: {os.path.abspath(VIDEOS_FOLDER)}")
     print("系统将自动打开浏览器...")
+    print("关闭此窗口即可退出程序。")
     
     def open_browser():
         """延迟打开浏览器"""
