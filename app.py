@@ -315,27 +315,36 @@ def load_triplet_options():
             header = next(reader, None)
             column_index = resolve_triplet_column_index(header)
             current_instrument = None
+            current_target = None
+            current_action = None
             instrument_rules = {}
             
             for row in reader:
-                instrument = normalize_triplet_option(
-                    get_triplet_cell_value(row, column_index['instrument'])
-                )
+                raw_instrument = get_triplet_cell_value(row, column_index['instrument'])
+                instrument = normalize_triplet_option(raw_instrument)
                 if instrument:
                     current_instrument = instrument
+                    current_target = None
+                    current_action = None
                 elif current_instrument:
                     instrument = current_instrument
                 else:
                     continue
 
-                target = normalize_triplet_option(
-                    get_triplet_cell_value(row, column_index['target']),
-                    default=TRIPLET_NULL_VALUE
-                )
-                action = normalize_triplet_option(
-                    get_triplet_cell_value(row, column_index['action']),
-                    default=TRIPLET_NULL_VALUE
-                )
+                raw_target = get_triplet_cell_value(row, column_index['target'])
+                target = normalize_triplet_option(raw_target)
+                if target is not None:
+                    current_target = target
+                else:
+                    target = current_target if current_target is not None else TRIPLET_NULL_VALUE
+
+                raw_action = get_triplet_cell_value(row, column_index['action'])
+                action = normalize_triplet_option(raw_action)
+                if action is not None:
+                    current_action = action
+                else:
+                    action = current_action if current_action is not None else TRIPLET_NULL_VALUE
+
                 add_triplet_relation(instrument_rules, instrument, target, action)
         
         return serialize_triplet_options(instrument_rules)
